@@ -15,6 +15,7 @@
     "@gluestack-ui/core": "^3.0.25",
     "@gluestack-ui/utils": "^3.0.21",
     "@legendapp/motion": "^2.5.3",
+    "@react-native-async-storage/async-storage": "^3.1.1",
     "@react-native-community/geolocation": "^3.4.0",
     "@react-native/new-app-screen": "0.86.0",
     "@react-navigation/native": "^7.3.8",
@@ -66,5 +67,6 @@
   },
   "engines": {
     "node": ">= 22.11.0"
-  }
+  },
+  "packageManager": "yarn@3.6.4+sha512.e70835d4d6d62c07be76b3c1529cb640c7443f0fe434ef4b6478a5a399218cbaf1511b396b3c56eb03bc86424cff2320f6167ad2fde273aa0df6e60b7754029f"
 }

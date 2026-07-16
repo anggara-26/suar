@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
+import { loadOrCreateDeviceId } from '@/src/protocol/deviceId';
 import { requestBlePermissions } from '@/src/services/permissions/PermissionsService';
 import { ensureBluetoothEnabled } from '@/src/services/ble/BleAdapterService';
 import { stopBroadcast } from '@/src/services/ble/BroadcastService';
-import { startScan, stopScan } from '@/src/services/ble/ScanService';
+import { startScan, stopScan, type ScanEvent } from '@/src/services/ble/ScanService';
 import * as RelayService from '@/src/services/ble/RelayService';
 import {
   startWatchingLocation,
   stopWatchingLocation,
   type LocationSample,
 } from '@/src/services/location/LocationService';
+import { startWatchingHeading, stopWatchingHeading } from '@/src/services/compass/CompassService';
 import { playBucketPattern, stopHaptics } from '@/src/services/haptics/HapticService';
 import { useBeaconStore } from '@/src/state/beaconStore';
 import { useSettingsStore } from '@/src/state/settingsStore';
@@ -40,11 +43,42 @@ export function useBleLifecycle() {
   const [status, setStatus] = useState<BleLifecycleStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const latestLocation = useRef<LocationSample | null>(null);
+  // AppState handlers need the current status without re-registering listeners.
+  const statusRef = useRef<BleLifecycleStatus>('idle');
+  statusRef.current = status;
 
   useEffect(() => {
     let cancelled = false;
 
+    function handleObservation({ observation, rssi }: ScanEvent) {
+      const ownDeviceId = useBeaconStore.getState().ownIdentity.deviceId;
+      // Our own frame can come back at us via another device's relay —
+      // never show ourselves on our own radar.
+      if (observation.deviceId === ownDeviceId) return;
+
+      useBeaconStore.getState().upsertBeacon({
+        deviceId: observation.deviceId,
+        beaconType: observation.beaconType,
+        isRelay: observation.isRelay,
+        hopsRemaining: observation.hopsRemaining,
+        latitude: observation.latitude,
+        longitude: observation.longitude,
+        timestamp: observation.timestamp,
+        sequence: observation.sequence,
+        rawRssi: rssi,
+      });
+
+      RelayService.registerObservedBeacon(observation, ownDeviceId);
+    }
+
     async function start() {
+      // Stable identity must be in place before the first broadcast: a fresh
+      // random ID every launch makes this phone reappear as a "new" beacon on
+      // every radar that saw the old one (duplicate dots for one device).
+      const deviceId = await loadOrCreateDeviceId();
+      if (cancelled) return;
+      useBeaconStore.getState().setOwnDeviceId(deviceId);
+
       setStatus('requesting-permissions');
       const granted = await requestBlePermissions();
       if (cancelled) return;
@@ -58,27 +92,26 @@ export function useBleLifecycle() {
         await ensureBluetoothEnabled();
         if (cancelled) return;
 
-        startWatchingLocation((sample) => {
-          latestLocation.current = sample;
-          useBeaconStore.getState().setOwnLocation(sample);
+        startWatchingLocation(
+          (sample) => {
+            latestLocation.current = sample;
+            useBeaconStore.getState().setOwnLocation(sample);
+          },
+          (message) => {
+            // Non-fatal: broadcasting carries the (0,0) placeholder until a fix
+            // arrives (see refreshOwnFrame), so this only degrades placement.
+            console.warn('[useBleLifecycle] location watch error:', message);
+          },
+        );
+
+        // Heading feeds the radar's heading-up rotation. On devices without a
+        // magnetometer the callback simply never fires and the radar stays
+        // north-up — no error path needed.
+        startWatchingHeading((sample) => {
+          useBeaconStore.getState().setOwnHeading(sample.heading);
         });
 
-        startScan(({ observation, rssi }) => {
-          useBeaconStore.getState().upsertBeacon({
-            deviceId: observation.deviceId,
-            beaconType: observation.beaconType,
-            isRelay: observation.isRelay,
-            hopsRemaining: observation.hopsRemaining,
-            latitude: observation.latitude,
-            longitude: observation.longitude,
-            timestamp: observation.timestamp,
-            sequence: observation.sequence,
-            rawRssi: rssi,
-          });
-
-          const ownDeviceId = useBeaconStore.getState().ownIdentity.deviceId;
-          RelayService.registerObservedBeacon(observation, ownDeviceId);
-        });
+        await startScan(handleObservation);
 
         setStatus('running');
       } catch (error) {
@@ -89,15 +122,47 @@ export function useBleLifecycle() {
       }
     }
 
+    // Radio must go silent the moment the app leaves the foreground. Android
+    // pauses JS timers on background but leaves the last BLE advertisement
+    // registered — a frozen frame that keeps transmitting stale state (old
+    // assembly flag, old GPS) indefinitely, which other radars see fighting
+    // with our next session's live frames ("blinking" between states).
+    function goSilent() {
+      RelayService.stopRotation();
+      stopBroadcast();
+      stopScan();
+      stopHaptics();
+    }
+
+    async function resume() {
+      try {
+        await startScan(handleObservation);
+        RelayService.startRotation();
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+        setStatus('error');
+      }
+    }
+
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      // Only manage the radio once the pipeline actually reached 'running' —
+      // an early 'active' event must not start scanning before permissions.
+      if (cancelled || statusRef.current !== 'running') return;
+      if (nextState === 'active') {
+        resume();
+      } else {
+        goSilent();
+      }
+    });
+
     start();
 
     return () => {
       cancelled = true;
-      stopScan();
-      stopBroadcast();
+      appStateSubscription.remove();
+      goSilent();
       stopWatchingLocation();
-      stopHaptics();
-      RelayService.stopRotation();
+      stopWatchingHeading();
     };
   }, []);
 
@@ -110,8 +175,14 @@ export function useBleLifecycle() {
     if (status !== 'running') return;
 
     function refreshOwnFrame() {
+      // No early return on a missing fix: presence broadcasting must not wait
+      // on GPS (pure GPS-only, no network assist — a fix can take a while or
+      // never come indoors). (0, 0) is the documented "no real fix yet"
+      // placeholder mapPlacement.ts already expects (see its `isValidFix`),
+      // which keeps the receiving end off the map and in the RSSI-only strip
+      // instead of implying a direction. Real coordinates take over
+      // automatically once `latestLocation.current` is populated.
       const location = latestLocation.current;
-      if (!location) return;
 
       const sequence = useBeaconStore.getState().incrementSequence();
       const deviceId = useBeaconStore.getState().ownIdentity.deviceId;
@@ -127,8 +198,8 @@ export function useBleLifecycle() {
         // relay, so raising this from 1 to MAX_HOPS_MESH is what turns F8's
         // single-hop relay into F9's mesh, with no other code changes needed.
         hopsRemaining: MAX_HOPS_MESH,
-        latitude: location.latitude,
-        longitude: location.longitude,
+        latitude: location?.latitude ?? 0,
+        longitude: location?.longitude ?? 0,
         timestamp: Date.now(),
         sequence,
       });
@@ -140,9 +211,17 @@ export function useBleLifecycle() {
     return () => clearInterval(interval);
   }, [status]);
 
-  // Haptic feedback follows the focused beacon (or the nearest one by default).
+  // Haptic feedback follows the focused beacon (or the nearest one by default),
+  // gated on the vibration setting — both stores retrigger it so toggling the
+  // setting takes effect immediately, not on the next beacon update.
   useEffect(() => {
-    const unsubscribe = useBeaconStore.subscribe((state) => {
+    function applyHapticTarget() {
+      if (!useSettingsStore.getState().hapticsEnabled) {
+        stopHaptics();
+        return;
+      }
+
+      const state = useBeaconStore.getState();
       const target = state.focusedBeaconId
         ? state.discoveredBeacons[state.focusedBeaconId]
         : selectNearestBeacon(state.discoveredBeacons);
@@ -152,8 +231,14 @@ export function useBleLifecycle() {
       } else {
         stopHaptics();
       }
-    });
-    return unsubscribe;
+    }
+
+    const unsubscribeBeacons = useBeaconStore.subscribe(applyHapticTarget);
+    const unsubscribeSettings = useSettingsStore.subscribe(applyHapticTarget);
+    return () => {
+      unsubscribeBeacons();
+      unsubscribeSettings();
+    };
   }, []);
 
   // Drop beacons we haven't heard from in a while.

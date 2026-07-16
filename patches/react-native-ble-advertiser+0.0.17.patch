@@ -23,3 +23,22 @@ index 2526548..b5d2ed5 100644
          versionCode 1
          versionName "1.0"
      }
+diff --git a/node_modules/react-native-ble-advertiser/android/src/main/java/com/vitorpamplona/bleadvertiser/BLEAdvertiserModule.java b/node_modules/react-native-ble-advertiser/android/src/main/java/com/vitorpamplona/bleadvertiser/BLEAdvertiserModule.java
+index 036de18..336fabc 100644
+--- a/node_modules/react-native-ble-advertiser/android/src/main/java/com/vitorpamplona/bleadvertiser/BLEAdvertiserModule.java
++++ b/node_modules/react-native-ble-advertiser/android/src/main/java/com/vitorpamplona/bleadvertiser/BLEAdvertiserModule.java
+@@ -257,12 +257,12 @@ public class BLEAdvertiserModule extends ReactContextBaseJavaModule {
+         ScanSettings scanSettings = buildScanSettings(options);
+     
+         List<ScanFilter> filters = new ArrayList<>();
+-        if (manufacturerPayload == null)
+-            filters = null;
+         if (manufacturerPayload != null)
+             filters.add(new ScanFilter.Builder().setManufacturerData(companyId, toByteArray(manufacturerPayload)).build());
+         if (uid != null)
+             filters.add(new ScanFilter.Builder().setServiceUuid(ParcelUuid.fromString(uid)).build());
++        if (filters.isEmpty())
++            filters = null;
+         
+         mScanner.startScan(filters, scanSettings, mScannerCallback);
+         promise.resolve("Scanner started");

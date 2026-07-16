@@ -9,6 +9,7 @@ import {
   createBucketTransitionState,
   type BucketTransitionState,
 } from '@/src/utils/rssiSmoothing';
+import { smoothHeading } from '@/src/utils/headingSmoothing';
 
 interface UpsertBeaconInput {
   deviceId: string;
@@ -25,6 +26,8 @@ interface UpsertBeaconInput {
 interface BeaconStoreState {
   ownIdentity: { deviceId: string; sequence: number };
   ownLocation: LocationSample | null;
+  /** Smoothed compass heading in degrees from true north, null until the sensor reports. */
+  ownHeading: number | null;
   discoveredBeacons: Record<string, BeaconState>;
   bucketTransitions: Record<string, BucketTransitionState>;
   /** Relay dedup: "deviceId:sequence" -> timestamp first seen. */
@@ -32,7 +35,9 @@ interface BeaconStoreState {
   focusedBeaconId: string | null;
 
   incrementSequence: () => number;
+  setOwnDeviceId: (deviceId: string) => void;
   setOwnLocation: (sample: LocationSample) => void;
+  setOwnHeading: (heading: number) => void;
   upsertBeacon: (input: UpsertBeaconInput) => void;
   pruneStaleBeacons: (staleAfterMs: number) => void;
   setFocusedBeacon: (deviceId: string | null) => void;
@@ -44,6 +49,7 @@ interface BeaconStoreState {
 export const useBeaconStore = create<BeaconStoreState>()((set, get) => ({
   ownIdentity: { deviceId: getDeviceId(), sequence: 0 },
   ownLocation: null,
+  ownHeading: null,
   discoveredBeacons: {},
   bucketTransitions: {},
   seenMessages: {},
@@ -55,11 +61,32 @@ export const useBeaconStore = create<BeaconStoreState>()((set, get) => ({
     return next;
   },
 
+  setOwnDeviceId: (deviceId) =>
+    set((state) => ({ ownIdentity: { ...state.ownIdentity, deviceId } })),
+
   setOwnLocation: (sample) => set({ ownLocation: sample }),
+
+  setOwnHeading: (heading) =>
+    set((state) => ({ ownHeading: smoothHeading(state.ownHeading, heading) })),
 
   upsertBeacon: (input) => {
     set((state) => {
       const existing = state.discoveredBeacons[input.deviceId];
+
+      // Staleness guard: frames carry the origin's build timestamp, so within
+      // one device they're totally ordered. An older frame (typically a relay
+      // still echoing pre-change state, or a leftover advertisement from a
+      // previous app session) must never overwrite newer state — without this
+      // the device appears to flip-flop between old and new state as direct
+      // and relayed frames interleave. Equal timestamps are re-reports of the
+      // same frame and only allowed when not losing a direct frame to a relay.
+      if (existing) {
+        if (input.timestamp < existing.timestamp) return state;
+        if (input.timestamp === existing.timestamp && input.isRelay && !existing.isRelay) {
+          return state;
+        }
+      }
+
       const smoothedRssi = smoothRssi(existing?.smoothedRssi ?? null, input.rawRssi);
       const candidateBucket = rssiToBucket(smoothedRssi);
 

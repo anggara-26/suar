@@ -1,4 +1,4 @@
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, Text } from 'react-native';
 import type { BleLifecycleStatus } from '@/src/hooks/useBleLifecycle';
 
 interface PermissionsScreenProps {
@@ -12,7 +12,7 @@ const STATUS_COPY: Record<BleLifecycleStatus, { title: string; body: string }> =
     title: 'Bluetooth & location access',
     body: 'Suar needs Bluetooth and location permission to broadcast and find nearby beacons — no internet is used.',
   },
-  starting: { title: 'Turning on Bluetooth', body: 'Powering up your beacon…' },
+  starting: { title: 'Please turn on your Bluetooth', body: 'Power up your beacon!! ^_^' },
   running: { title: 'Starting Suar', body: 'Getting ready…' },
   'permission-denied': {
     title: 'Permission needed',
@@ -23,15 +23,9 @@ const STATUS_COPY: Record<BleLifecycleStatus, { title: string; body: string }> =
 
 export function PermissionsScreen({ status, errorMessage }: PermissionsScreenProps) {
   const copy = STATUS_COPY[status];
-  const isLoading = status === 'idle' || status === 'requesting-permissions' || status === 'starting';
 
   return (
     <View className="flex-1 items-center justify-center bg-background-0 px-8">
-      {isLoading ? (
-        <View className="mb-6">
-          <ActivityIndicator size="large" />
-        </View>
-      ) : null}
       <Text
         className="mb-2 text-center text-xl font-bold text-typography-900"
         accessibilityRole="header">

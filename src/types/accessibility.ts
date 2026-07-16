@@ -1,10 +1,8 @@
-export type AccessibilityMode = 'blind' | 'deaf' | 'standard';
-
 export interface AccessibilityFlags {
-  /** Emphasize TTS narration. */
+  /** TTS narration channel. */
   speak: boolean;
-  /** Emphasize large/high-contrast on-screen indicators. */
+  /** Vibration feedback channel. */
+  haptics: boolean;
+  /** Large/high-contrast on-screen indicators — always on (visual channel has no off switch). */
   bigVisual: boolean;
-  /** Multiplier applied to haptic pattern intensity, 1 = normal. */
-  hapticBoost: number;
 }

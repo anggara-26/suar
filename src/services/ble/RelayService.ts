@@ -6,6 +6,7 @@ import {
   BROADCAST_INTERVAL_MS,
   RELAY_ROTATION_INTERVAL_MS,
   RELAY_ROTATION_MAX_FRAMES,
+  RELAY_FRAME_TTL_MS,
 } from '@/src/protocol/constants';
 
 /**
@@ -19,7 +20,9 @@ import {
 
 let ownFrame: EncodeBeaconInput | null = null;
 // Insertion-ordered map doubles as the relay set and its own recency eviction.
-const relayFrames = new Map<string, EncodeBeaconInput>();
+// Entries also expire after RELAY_FRAME_TTL_MS: an immortal relay entry keeps
+// rebroadcasting state the origin may have already changed.
+const relayFrames = new Map<string, { frame: EncodeBeaconInput; addedAt: number }>();
 
 let rotationIndex = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -37,7 +40,7 @@ export function registerObservedBeacon(observation: BeaconObservation, ownDevice
   if (relayFrames.has(key)) return;
 
   markRelayed(observation);
-  relayFrames.set(key, buildRelayFrame(observation));
+  relayFrames.set(key, { frame: buildRelayFrame(observation), addedAt: Date.now() });
 
   if (relayFrames.size > RELAY_ROTATION_MAX_FRAMES) {
     const oldestKey = relayFrames.keys().next().value;
@@ -45,15 +48,27 @@ export function registerObservedBeacon(observation: BeaconObservation, ownDevice
   }
 }
 
+function evictExpiredRelayFrames(): void {
+  const now = Date.now();
+  for (const [key, entry] of relayFrames) {
+    if (now - entry.addedAt > RELAY_FRAME_TTL_MS) relayFrames.delete(key);
+  }
+}
+
 function tick(): void {
-  const frames = [ownFrame, ...relayFrames.values()].filter(
-    (frame): frame is EncodeBeaconInput => frame !== null,
-  );
+  evictExpiredRelayFrames();
+
+  const frames = [
+    ownFrame,
+    ...[...relayFrames.values()].map((entry) => entry.frame),
+  ].filter((frame): frame is EncodeBeaconInput => frame !== null);
 
   if (frames.length > 0) {
     const frame = frames[rotationIndex % frames.length];
     rotationIndex += 1;
-    updateBroadcast(frame).catch(() => {});
+    updateBroadcast(frame).catch((error) => {
+      console.warn('[RelayService] updateBroadcast failed:', error);
+    });
   }
 
   const nextDelay = relayFrames.size > 0 ? RELAY_ROTATION_INTERVAL_MS : BROADCAST_INTERVAL_MS;

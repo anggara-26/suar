@@ -1,41 +1,43 @@
 import { useEffect, useRef } from 'react';
 import { useSettingsStore } from '@/src/state/settingsStore';
-import { useAccessibilityMode } from '@/src/hooks/useAccessibilityMode';
-import { speak } from '@/src/services/tts/TtsService';
-import type { AccessibilityMode } from '@/src/types/accessibility';
-
-const MODE_ANNOUNCEMENT: Record<AccessibilityMode, string> = {
-  blind: 'Blind mode. Voice and vibration will guide you.',
-  deaf: 'Deaf mode. Visual and vibration will guide you.',
-  standard: 'Standard mode.',
-};
+import { speak, stopSpeaking } from '@/src/services/tts/TtsService';
 
 /**
- * Invisible — announces accessibility-relevant state changes over TTS when
- * the current mode has `speak` enabled. Distinct from useVoiceGuidance
- * (Phase 4), which narrates ongoing distance/direction rather than one-off
- * state transitions.
+ * Invisible — announces accessibility-relevant state changes over TTS.
+ * Distinct from useVoiceGuidance (Phase 4), which narrates ongoing
+ * distance/direction rather than one-off state transitions.
  */
 export function AccessibleAnnouncer() {
-  const { speak: speakEnabled, mode } = useAccessibilityMode();
+  const voiceEnabled = useSettingsStore((state) => state.voiceEnabled);
+  const hapticsEnabled = useSettingsStore((state) => state.hapticsEnabled);
   const isAssemblyPoint = useSettingsStore((state) => state.isAssemblyPoint);
-  const isFirstModeRender = useRef(true);
+  const previousVoice = useRef(voiceEnabled);
+  const previousHaptics = useRef(hapticsEnabled);
   const previousAssemblyPoint = useRef(isAssemblyPoint);
 
   useEffect(() => {
-    if (isFirstModeRender.current) {
-      isFirstModeRender.current = false;
-      return;
+    if (previousVoice.current === voiceEnabled) return;
+    previousVoice.current = voiceEnabled;
+    if (voiceEnabled) {
+      speak('Voice guidance on.', { force: true });
+    } else {
+      // Cut off any in-flight utterance immediately — "off" must feel instant.
+      stopSpeaking();
     }
-    if (speakEnabled) {
-      speak(MODE_ANNOUNCEMENT[mode], { force: true });
+  }, [voiceEnabled]);
+
+  useEffect(() => {
+    if (previousHaptics.current === hapticsEnabled) return;
+    previousHaptics.current = hapticsEnabled;
+    if (voiceEnabled) {
+      speak(hapticsEnabled ? 'Vibration on.' : 'Vibration off.', { force: true });
     }
-  }, [mode, speakEnabled]);
+  }, [hapticsEnabled, voiceEnabled]);
 
   useEffect(() => {
     if (previousAssemblyPoint.current === isAssemblyPoint) return;
     previousAssemblyPoint.current = isAssemblyPoint;
-    if (speakEnabled) {
+    if (voiceEnabled) {
       speak(
         isAssemblyPoint
           ? 'This phone is now an assembly point beacon.'
@@ -43,7 +45,7 @@ export function AccessibleAnnouncer() {
         { force: true },
       );
     }
-  }, [isAssemblyPoint, speakEnabled]);
+  }, [isAssemblyPoint, voiceEnabled]);
 
   return null;
 }

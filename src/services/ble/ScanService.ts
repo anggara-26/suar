@@ -30,7 +30,7 @@ function getEmitter(): NativeEventEmitter {
 let subscription: { remove: () => void } | null = null;
 let isScanning = false;
 
-export function startScan(onBeacon: ScanListener): void {
+export async function startScan(onBeacon: ScanListener): Promise<void> {
   if (isScanning) return;
 
   BLEAdvertiser.setCompanyId(SUAR_COMPANY_ID);
@@ -46,12 +46,20 @@ export function startScan(onBeacon: ScanListener): void {
     }
   });
 
-  BLEAdvertiser.scanByService(SUAR_SERVICE_UUID, {
-    scanMode: BLEAdvertiser.SCAN_MODE_LOW_LATENCY,
-    matchMode: BLEAdvertiser.MATCH_MODE_AGGRESSIVE,
-  }).catch(() => {});
-
   isScanning = true;
+  try {
+    await BLEAdvertiser.scanByService(SUAR_SERVICE_UUID, {
+      scanMode: BLEAdvertiser.SCAN_MODE_LOW_LATENCY,
+      matchMode: BLEAdvertiser.MATCH_MODE_AGGRESSIVE,
+    });
+  } catch (error) {
+    // Scanning is core (F2): a device that broadcasts but can't hear anyone
+    // must fail loudly, not sit on an empty radar forever.
+    isScanning = false;
+    subscription?.remove();
+    subscription = null;
+    throw new Error(`BLE scan failed to start: ${String(error)}`);
+  }
 }
 
 export async function stopScan(): Promise<void> {

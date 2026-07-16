@@ -1,23 +1,18 @@
 import { Modal, Pressable, Switch, Text, View } from 'react-native';
 import { useSettingsStore } from '@/src/state/settingsStore';
-import type { AccessibilityMode } from '@/src/types/accessibility';
 
 interface AssemblyToggleSheetProps {
   visible: boolean;
   onClose: () => void;
 }
 
-const MODE_OPTIONS: { mode: AccessibilityMode; label: string; hint: string }[] = [
-  { mode: 'standard', label: 'Standard', hint: 'Balanced voice, visual, and haptic' },
-  { mode: 'blind', label: 'Blind / low-vision', hint: 'Voice and haptic lead' },
-  { mode: 'deaf', label: 'Deaf / hard-of-hearing', hint: 'Visual and haptic lead' },
-];
-
 export function AssemblyToggleSheet({ visible, onClose }: AssemblyToggleSheetProps) {
   const isAssemblyPoint = useSettingsStore((state) => state.isAssemblyPoint);
   const setIsAssemblyPoint = useSettingsStore((state) => state.setIsAssemblyPoint);
-  const accessibilityMode = useSettingsStore((state) => state.accessibilityMode);
-  const setAccessibilityMode = useSettingsStore((state) => state.setAccessibilityMode);
+  const voiceEnabled = useSettingsStore((state) => state.voiceEnabled);
+  const setVoiceEnabled = useSettingsStore((state) => state.setVoiceEnabled);
+  const hapticsEnabled = useSettingsStore((state) => state.hapticsEnabled);
+  const setHapticsEnabled = useSettingsStore((state) => state.setHapticsEnabled);
   const disasterMode = useSettingsStore((state) => state.disasterMode);
   const setDisasterMode = useSettingsStore((state) => state.setDisasterMode);
 
@@ -50,26 +45,39 @@ export function AssemblyToggleSheet({ visible, onClose }: AssemblyToggleSheetPro
             />
           </View>
 
-          <Text className="mb-2 text-base font-semibold text-typography-900">
-            Accessibility mode
+          <Text className="mb-2 text-base font-semibold text-typography-900">Accessibility</Text>
+          <Text className="mb-3 text-sm text-typography-600">
+            Voice, vibration, and the radar are all on by default — switch off the channels you
+            don't want. The radar is always on.
           </Text>
-          {MODE_OPTIONS.map((option) => {
-            const isSelected = option.mode === accessibilityMode;
-            return (
-              <Pressable
-                key={option.mode}
-                onPress={() => setAccessibilityMode(option.mode)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: isSelected }}
-                accessibilityLabel={`${option.label}. ${option.hint}`}
-                className={`mb-2 rounded-xl border px-4 py-3 ${
-                  isSelected ? 'border-primary-500 bg-primary-50' : 'border-outline-200'
-                }`}>
-                <Text className="text-base font-medium text-typography-900">{option.label}</Text>
-                <Text className="text-sm text-typography-600">{option.hint}</Text>
-              </Pressable>
-            );
-          })}
+
+          <View className="mb-4 flex-row items-center justify-between">
+            <View className="flex-1 pr-4">
+              <Text className="text-base font-medium text-typography-900">Voice guidance</Text>
+              <Text className="text-sm text-typography-600">
+                Spoken distance and status announcements
+              </Text>
+            </View>
+            <Switch
+              value={voiceEnabled}
+              onValueChange={setVoiceEnabled}
+              accessibilityLabel="Toggle voice guidance"
+            />
+          </View>
+
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1 pr-4">
+              <Text className="text-base font-medium text-typography-900">Vibration feedback</Text>
+              <Text className="text-sm text-typography-600">
+                Distance patterns for the nearest or focused beacon
+              </Text>
+            </View>
+            <Switch
+              value={hapticsEnabled}
+              onValueChange={setHapticsEnabled}
+              accessibilityLabel="Toggle vibration feedback"
+            />
+          </View>
 
           <View className="mt-4 flex-row items-center justify-between">
             <View className="flex-1 pr-4">

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, FlatList, Pressable } from 'react-native';
 import { useBeaconStore } from '@/src/state/beaconStore';
 import { useSettingsStore } from '@/src/state/settingsStore';
 import { BeaconType, type BeaconState, type RssiBucket } from '@/src/types/beacon';
-import { RadarView } from '@/src/components/radar/RadarView';
-import { placeBeaconOnRadar } from '@/src/utils/radarPlacement';
+import { MapView } from '@/src/components/map/MapView';
+import { UnlocatedBeaconStrip } from '@/src/components/map/UnlocatedBeaconStrip';
+import { partitionBeaconsForMap } from '@/src/utils/mapPlacement';
 import { AssemblyToggleSheet } from '@/src/components/AssemblyToggleSheet';
 import { AccessibleAnnouncer } from '@/src/components/accessibility/AccessibleAnnouncer';
 import { VisualEmphasis } from '@/src/components/accessibility/VisualEmphasis';
@@ -57,9 +58,30 @@ export function RadarScreen() {
   const ownDeviceId = useBeaconStore((state) => state.ownIdentity.deviceId);
   const ownLocation = useBeaconStore((state) => state.ownLocation);
   const isAssemblyPoint = useSettingsStore((state) => state.isAssemblyPoint);
+  const mapSpanMeters = useSettingsStore((state) => state.mapSpanMeters);
+  const rotationMode = useSettingsStore((state) => state.rotationMode);
+  const cycleMapSpan = useSettingsStore((state) => state.cycleMapSpan);
+  const setRotationMode = useSettingsStore((state) => state.setRotationMode);
   useVoiceGuidance();
 
-  const beaconList = Object.values(beacons).sort((a, b) => b.smoothedRssi - a.smoothedRssi);
+  const beaconList = useMemo(
+    () => Object.values(beacons).sort((a, b) => b.smoothedRssi - a.smoothedRssi),
+    [beacons],
+  );
+
+  // Partitioned once here, then handed to both the map and the list — they must
+  // agree on what's placeable, and recomputing is how they drift apart.
+  const { located, unlocated } = useMemo(
+    () => partitionBeaconsForMap(ownLocation, beaconList),
+    [ownLocation, beaconList],
+  );
+
+  const distanceLabels = useMemo(() => {
+    const labels: Record<string, string> = {};
+    for (const { beacon, distanceLabel } of located) labels[beacon.deviceId] = distanceLabel;
+    for (const { beacon, distanceLabel } of unlocated) labels[beacon.deviceId] = distanceLabel;
+    return labels;
+  }, [located, unlocated]);
 
   return (
     <View className="flex-1 bg-background-0 px-4 pt-4">
@@ -87,9 +109,35 @@ export function RadarScreen() {
         ) : null}
       </VisualEmphasis>
 
-      <View className="mb-4 items-center">
-        <RadarView beacons={beaconList} ownLocation={ownLocation} focusedBeaconId={focusedBeaconId} />
+      <View className="mb-3 items-center">
+        <MapView located={located} focusedBeaconId={focusedBeaconId} />
+
+        <View className="mt-2 flex-row">
+          <Pressable
+            onPress={() => setRotationMode(rotationMode === 'heading-up' ? 'north-up' : 'heading-up')}
+            accessibilityRole="button"
+            accessibilityLabel={
+              rotationMode === 'heading-up'
+                ? 'Map rotates to face your direction. Tap to lock north up.'
+                : 'Map is locked north up. Tap to rotate with your direction.'
+            }
+            className="mr-2 rounded-full border border-outline-200 px-4 py-2">
+            <Text className="text-sm font-medium text-typography-900">
+              {rotationMode === 'heading-up' ? '▲ Heading up' : 'N North up'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={cycleMapSpan}
+            accessibilityRole="button"
+            accessibilityLabel={`Map range ${mapSpanMeters} metres across. Tap to change.`}
+            className="rounded-full border border-outline-200 px-4 py-2">
+            <Text className="text-sm font-medium text-typography-900">{mapSpanMeters} m</Text>
+          </Pressable>
+        </View>
       </View>
+
+      <UnlocatedBeaconStrip unlocated={unlocated} focusedBeaconId={focusedBeaconId} />
 
       {beaconList.length === 0 ? (
         <View className="flex-1 items-center justify-center">
@@ -107,7 +155,7 @@ export function RadarScreen() {
             <BeaconRow
               beacon={item}
               isFocused={item.deviceId === focusedBeaconId}
-              distanceLabel={placeBeaconOnRadar(ownLocation, item).distanceLabel}
+              distanceLabel={distanceLabels[item.deviceId]}
             />
           )}
         />

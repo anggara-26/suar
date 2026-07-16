@@ -10,16 +10,20 @@ export type HeadingListener = (sample: HeadingSample) => void;
 let isWatching = false;
 
 /**
- * Kept minimal and unused by the app's default flow: voice guidance ships
- * distance + hot/cold only in v1 (plan decision #4) and never claims a
- * bearing, which is the only thing a compass would be for here. This wrapper
- * exists so bearing can be added later as an explicit stretch without a new
- * native dependency — starting it isn't wired into any active screen yet.
+ * Feeds the map's heading-up rotation (see components/map/MapView.tsx): the
+ * world rotates so "up" is where the phone faces. Voice guidance still never
+ * claims a bearing — spoken cues stay distance + hot/cold only, since a spoken
+ * "turn right" needs more compass confidence than a visual rotation does.
+ *
+ * The 1° sensor filter is deliberately tighter than the display needs: the
+ * store runs these samples through a circular EMA (utils/headingSmoothing.ts),
+ * which can only smooth jitter it actually sees. A coarse filter here would
+ * hand the EMA pre-quantized steps and the map would rotate in visible jumps.
  */
 export function startWatchingHeading(onHeading: HeadingListener): void {
   if (isWatching) return;
   isWatching = true;
-  CompassHeading.start(3, (data: HeadingSample) => onHeading(data));
+  CompassHeading.start(1, (data: HeadingSample) => onHeading(data));
 }
 
 export function stopWatchingHeading(): void {

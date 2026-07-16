@@ -1,4 +1,8 @@
-import { haversineDistanceMeters, bearingDegrees } from '@/src/utils/geo';
+import {
+  haversineDistanceMeters,
+  bearingDegrees,
+  toLocalEastNorthMeters,
+} from '@/src/utils/geo';
 
 describe('haversineDistanceMeters', () => {
   it('returns 0 for identical points', () => {
@@ -26,5 +30,48 @@ describe('bearingDegrees', () => {
 
   it('reports due west as 270 degrees', () => {
     expect(bearingDegrees(0, 0, 0, -1)).toBeCloseTo(270, 1);
+  });
+});
+
+describe('toLocalEastNorthMeters', () => {
+  it('returns the origin for an identical point', () => {
+    expect(toLocalEastNorthMeters(-6.2, 106.8, -6.2, 106.8)).toEqual({ east: 0, north: 0 });
+  });
+
+  it('maps a northward delta to +north only', () => {
+    const offset = toLocalEastNorthMeters(-6.2, 106.8, -6.199, 106.8);
+
+    expect(offset.north).toBeCloseTo(111, 0);
+    expect(offset.east).toBeCloseTo(0, 5);
+  });
+
+  it('maps an eastward delta to +east only', () => {
+    const offset = toLocalEastNorthMeters(-6.2, 106.8, -6.2, 106.801);
+
+    expect(offset.east).toBeGreaterThan(0);
+    expect(offset.north).toBeCloseTo(0, 5);
+  });
+
+  it('signs south and west negatively', () => {
+    const offset = toLocalEastNorthMeters(-6.2, 106.8, -6.201, 106.799);
+
+    expect(offset.north).toBeLessThan(0);
+    expect(offset.east).toBeLessThan(0);
+  });
+
+  it('shrinks eastward metres as longitude lines converge toward the pole', () => {
+    const atEquator = toLocalEastNorthMeters(0, 0, 0, 0.01);
+    const atSixty = toLocalEastNorthMeters(60, 0, 60, 0.01);
+
+    // cos(60 degrees) is exactly 0.5.
+    expect(atSixty.east).toBeCloseTo(atEquator.east / 2, 3);
+  });
+
+  it('agrees with haversine over a map-scale separation', () => {
+    const offset = toLocalEastNorthMeters(-6.2, 106.8, -6.199, 106.801);
+    const projected = Math.hypot(offset.east, offset.north);
+    const haversine = haversineDistanceMeters(-6.2, 106.8, -6.199, 106.801);
+
+    expect(projected).toBeCloseTo(haversine, 1);
   });
 });

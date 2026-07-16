@@ -16,6 +16,9 @@ module.exports = {
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native' +
       '|@react-native(-community)?' +
+      // Ships untranspiled ESM, and the pattern above stops at `@react-native/`
+      // so it would otherwise never be transformed.
+      '|@react-native-async-storage/.*' +
       '|@react-navigation/.*' +
       '|@gluestack-ui/.*' +
       '|@legendapp/.*' +

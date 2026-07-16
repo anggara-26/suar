@@ -31,6 +31,15 @@ export const RELAY_ROTATION_INTERVAL_MS = 750;
 /** Max number of distinct beacons a relay will keep in its rotation at once. */
 export const RELAY_ROTATION_MAX_FRAMES = 5;
 
+/**
+ * A relayed frame is dropped from the rotation after this long. Origins
+ * refresh their frame every BROADCAST_INTERVAL_MS, so anything older than a
+ * couple of intervals is stale news — rebroadcasting it forever means a relay
+ * can keep resurrecting state the origin already changed (e.g. an assembly
+ * point that was turned off), making the origin appear to flip-flop.
+ */
+export const RELAY_FRAME_TTL_MS = 10_000;
+
 /** Mesh dedup "seen" entries older than this are evicted. */
 export const SEEN_MESSAGE_TTL_MS = 5 * 60 * 1000;
 
