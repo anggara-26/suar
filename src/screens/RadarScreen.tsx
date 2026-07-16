@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, FlatList, Pressable } from 'react-native';
+import { View, Text, FlatList, Pressable, Vibration } from 'react-native';
 import { useBeaconStore } from '@/src/state/beaconStore';
 import { useSettingsStore } from '@/src/state/settingsStore';
 import { BeaconType, type BeaconState, type RssiBucket } from '@/src/types/beacon';
@@ -35,9 +35,8 @@ function BeaconRow({
       onPress={() => setFocusedBeacon(isFocused ? null : beacon.deviceId)}
       accessibilityRole="button"
       accessibilityLabel={`${isAssembly ? 'Assembly point' : 'Person'} ${beacon.deviceId}, ${distanceLabel}${isFocused ? ', focused' : ''}`}
-      className={`mb-3 rounded-xl border px-4 py-3 ${
-        isFocused ? 'border-primary-500 bg-primary-50' : 'border-outline-200 bg-background-0'
-      }`}>
+      className={`mb-3 rounded-xl border px-4 py-3 ${isFocused ? 'border-primary-500 bg-primary-50' : 'border-outline-200 bg-background-0'
+        }`}>
       <View className="flex-row items-center justify-between">
         <Text className="text-base font-semibold text-typography-900">
           {isAssembly ? '📍 Assembly point' : '🧍 Person'} · {beacon.deviceId}

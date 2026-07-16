@@ -26,7 +26,7 @@ export interface MapPlacement {
  * isn't in the wire format, so assume a typical outdoor fix for their half.
  */
 const ASSUMED_PEER_ACCURACY_METERS = 15;
-const MIN_BEARING_DISTANCE_FLOOR_METERS = 20;
+const MIN_BEARING_DISTANCE_FLOOR_METERS = 2;
 
 const RSSI_RING_LABEL: Record<RssiBucket, string> = {
   'very-near': 'Very near',

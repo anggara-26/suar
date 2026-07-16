@@ -10,25 +10,25 @@ export interface ViewportDot {
 }
 
 export interface Viewport {
-  /** Width and height of the square, in pixels. */
+  /** Diameter of the map, in pixels. */
   size: number;
-  /** How many metres the square spans edge to edge. */
+  /** How many metres the map spans across its diameter. */
   spanMeters: number;
   /** Keeps a dot's glyph clear of the frame. */
   dotInsetPx: number;
 }
 
 /**
- * Projects a north-up world offset onto the square's pixel grid, north-up.
+ * Projects a north-up world offset onto the map's pixel grid, north-up.
  *
  * Deliberately heading-free: the view rotates the whole world with one
  * transform, so baking rotation in here would recompute every dot on every
  * compass sample for no gain.
  *
- * Out-of-reach beacons clamp to the inscribed circle rather than the square's
- * edge. A circle is rotation-invariant, so a clamped dot stays put and stays
- * visible as the world turns, and nothing pops in and out of the corners —
- * the square is the frame, the circle is the reach.
+ * Out-of-reach beacons clamp to a circle — the same radius in every direction.
+ * That radius is rotation-invariant, so a clamped dot holds its place and stays
+ * on screen as the world turns; clamping to a boundary that varied with bearing
+ * would let the rotation sweep a pinned dot out of the frame.
  */
 export function projectOffsetToViewport(offset: LocalOffsetMeters, viewport: Viewport): ViewportDot {
   const { size, spanMeters, dotInsetPx } = viewport;

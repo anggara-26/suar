@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { View } from 'react-native';
-import Svg, { ClipPath, Defs, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, G, Line, Path, Text as SvgText } from 'react-native-svg';
 import { MapDot } from '@/src/components/map/MapDot';
 import { useMapTheme } from '@/src/components/map/mapTheme';
 import { useBeaconStore } from '@/src/state/beaconStore';
@@ -21,9 +21,11 @@ const DOT_INSET_PX = 18;
 const CLIP_ID = 'suar-map-clip';
 
 /**
- * "You" at the centre, no map tiles (no internet dependency). A square,
+ * "You" at the centre, no map tiles (no internet dependency). A circular,
  * player-centric, heading-up map: the world — grid and all — rotates under a
- * fixed arrow, so "up" is always where the phone faces.
+ * fixed arrow, so "up" is always where the phone faces. The grid is what makes
+ * that rotation legible; the range rings are rotation-invariant and only carry
+ * scale.
  *
  * Only beacons with a direction we'd stand behind are drawn here; everything
  * else is the strip's job (see UnlocatedBeaconStrip). A dot's position on a map
@@ -55,13 +57,28 @@ export function MapView({ located, focusedBeaconId, size = 280 }: MapViewProps) 
     [located, size, mapSpanMeters],
   );
 
+  const frameRadius = center - 1; // Keeps the stroke inside the viewbox.
+
   const gridStepPx = GRID_STEP_METERS[mapSpanMeters] * pxPerMetre;
-  // Oversized so the rotated grid still covers the square's corners.
+  // Oversized so the rotated grid still covers the frame at every angle.
   const halfDiagonal = (size * Math.SQRT2) / 2;
   const gridLines = useMemo(() => {
     const reach = Math.ceil(halfDiagonal / gridStepPx);
     return Array.from({ length: reach * 2 + 1 }, (_, i) => (i - reach) * gridStepPx);
   }, [halfDiagonal, gridStepPx]);
+
+  // Pinned to grid-step multiples so the rings and the grid always agree,
+  // whatever the span. Both land inside the frame at every zoom step.
+  //
+  // The labels are what make these rings worth drawing. Ring radius works out
+  // as gridStep * size / span, and gridStep tracks the span to keep ~6 lines
+  // across — so 150 m and 300 m put their rings on identical pixels. Without
+  // the metre value written on them the two zoom levels are indistinguishable,
+  // and a ring you can't read a distance off is just decoration.
+  const rings = [1, 2].map((multiple) => ({
+    meters: GRID_STEP_METERS[mapSpanMeters] * multiple,
+    radiusPx: gridStepPx * multiple,
+  }));
 
   // North sits at bearing 0, so on screen it lands opposite the rotation.
   const northAngleRad = (-displayHeading * Math.PI) / 180;
@@ -78,11 +95,18 @@ export function MapView({ located, focusedBeaconId, size = 280 }: MapViewProps) 
       <Svg width={size} height={size}>
         <Defs>
           <ClipPath id={CLIP_ID}>
-            <Rect x={0} y={0} width={size} height={size} rx={12} />
+            <Circle cx={center} cy={center} r={frameRadius} />
           </ClipPath>
         </Defs>
 
-        <Rect x={0} y={0} width={size} height={size} rx={12} fill={theme.surface} stroke={theme.frame} strokeWidth={1} />
+        <Circle
+          cx={center}
+          cy={center}
+          r={frameRadius}
+          fill={theme.surface}
+          stroke={theme.frame}
+          strokeWidth={1}
+        />
 
         <G clipPath={`url(#${CLIP_ID})`}>
           <G transform={`rotate(${-displayHeading}, ${center}, ${center})`}>
@@ -123,6 +147,28 @@ export function MapView({ located, focusedBeaconId, size = 280 }: MapViewProps) 
           </G>
 
           {/* Chrome below stays out of the rotated group — it belongs to the phone, not the world. */}
+          {rings.map((ring) => (
+            <G key={ring.meters}>
+              <Circle
+                cx={center}
+                cy={center}
+                r={ring.radiusPx}
+                fill="none"
+                stroke={theme.frame}
+                strokeOpacity={0.5}
+                strokeWidth={1}
+              />
+              <SvgText
+                x={center}
+                y={center + ring.radiusPx - 4}
+                fontSize={9}
+                fill={theme.north}
+                textAnchor="middle">
+                {`${ring.meters} m`}
+              </SvgText>
+            </G>
+          ))}
+
           <SvgText x={northX} y={northY + 4} fontSize={12} fontWeight="bold" fill={theme.north} textAnchor="middle">
             N
           </SvgText>

@@ -66,9 +66,9 @@ describe('projectOffsetToViewport', () => {
   });
 
   it('clamps every direction to the same radius, so rotating cannot hide a dot', () => {
-    // The whole reason for clamping to the inscribed circle rather than the
-    // square: a square boundary would put a clamped dot at a different radius
-    // per bearing, and the world rotation would sweep it outside the frame.
+    // The whole reason the clamp boundary is a circle: a boundary that varied
+    // with bearing would pin dots at a different radius per direction, and the
+    // world rotation would sweep them outside the frame.
     const radii = [0, 30, 45, 137, 200, 300].map((deg) => {
       const rad = (deg * Math.PI) / 180;
       const dot = projectOffsetToViewport(

@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
-import { G } from 'react-native-svg';
+import { G, Text as SvgText } from 'react-native-svg';
 import { MapView } from '@/src/components/map/MapView';
 import { useBeaconStore } from '@/src/state/beaconStore';
 import { useSettingsStore } from '@/src/state/settingsStore';
@@ -42,6 +42,14 @@ function render(located: LocatedBeacon[] = []) {
   });
   mounted.push(tree);
   return tree;
+}
+
+/** Ring labels, innermost first — the only on-screen cue that distinguishes zoom levels. */
+function ringLabels(tree: ReactTestRenderer.ReactTestRenderer): string[] {
+  return tree.root
+    .findAllByType(SvgText)
+    .map((node) => node.props.children)
+    .filter((child: unknown): child is string => typeof child === 'string' && / m$/.test(child));
 }
 
 /** The world group is the only one carrying a rotate() about the map centre. */
@@ -94,6 +102,22 @@ describe('MapView', () => {
     expect(worldRotation(render([makeLocated({ east: 0, north: 50 })]))).toBe(
       `rotate(0, ${CENTER}, ${CENTER})`,
     );
+  });
+
+  it('labels the range rings with the distance they represent', () => {
+    // Ring radius is gridStep * size / span, and gridStep tracks the span — so
+    // 150 m and 300 m draw their rings on identical pixels. These labels are
+    // the only thing distinguishing the zoom levels on screen.
+    useSettingsStore.setState({ mapSpanMeters: 150 });
+    expect(ringLabels(render())).toEqual(['25 m', '50 m']);
+  });
+
+  it('re-labels the rings on zoom, so changing span visibly changes the map', () => {
+    useSettingsStore.setState({ mapSpanMeters: 300 });
+    expect(ringLabels(render())).toEqual(['50 m', '100 m']);
+
+    useSettingsStore.setState({ mapSpanMeters: 50 });
+    expect(ringLabels(render())).toEqual(['10 m', '20 m']);
   });
 
   it('announces how many beacons it is actually showing', () => {
