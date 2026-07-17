@@ -10,9 +10,11 @@ export interface ViewportDot {
 }
 
 export interface Viewport {
-  /** Diameter of the map, in pixels. */
-  size: number;
-  /** How many metres the map spans across its diameter. */
+  /** Map width in pixels. */
+  width: number;
+  /** Map height in pixels. */
+  height: number;
+  /** How many metres the map spans across its shorter dimension. */
   spanMeters: number;
   /** Keeps a dot's glyph clear of the frame. */
   dotInsetPx: number;
@@ -25,27 +27,39 @@ export interface Viewport {
  * transform, so baking rotation in here would recompute every dot on every
  * compass sample for no gain.
  *
- * Out-of-reach beacons clamp to a circle — the same radius in every direction.
- * That radius is rotation-invariant, so a clamped dot holds its place and stays
- * on screen as the world turns; clamping to a boundary that varied with bearing
- * would let the rotation sweep a pinned dot out of the frame.
+ * The map fills a plain rectangle now (no circular frame), so scale is set by
+ * the *shorter* side — the longer side then simply shows more world, which is
+ * how a filled map is supposed to behave, rather than wasting the extra reach
+ * by force-fitting an inscribed circle into it.
+ *
+ * Out-of-reach beacons clamp to the rectangle itself: the offset is scaled
+ * down just enough that neither axis exceeds its half of the box, so a dot
+ * pinned directly ahead stops at the top edge and one off to the side can
+ * still ride out to the left/right edge — whichever wall it reaches first.
+ * That clamp uses the full rectangle (not a circle inscribed in it), which is
+ * the point of "just fill": nothing in the corners goes to waste.
  */
 export function projectOffsetToViewport(offset: LocalOffsetMeters, viewport: Viewport): ViewportDot {
-  const { size, spanMeters, dotInsetPx } = viewport;
-  const center = size / 2;
-  const pxPerMetre = size / spanMeters;
+  const { width, height, spanMeters, dotInsetPx } = viewport;
+  const centerX = width / 2;
+  const centerY = height / 2;
+  const pxPerMetre = Math.min(width, height) / spanMeters;
 
   const dx = offset.east * pxPerMetre;
   const dy = -offset.north * pxPerMetre;
 
-  const radiusPx = Math.hypot(dx, dy);
-  const maxRadiusPx = center - dotInsetPx;
-  const isOffMap = radiusPx > maxRadiusPx;
-  const scale = isOffMap ? maxRadiusPx / radiusPx : 1;
+  const maxX = centerX - dotInsetPx;
+  const maxY = centerY - dotInsetPx;
+
+  // Whichever axis would overshoot first sets the scale; dx or dy at exactly 0
+  // divides to Infinity (not NaN, since the numerator is positive), which
+  // Math.min correctly ignores in favour of the other axis's real limit.
+  const scale = Math.min(1, maxX / Math.abs(dx), maxY / Math.abs(dy));
+  const isOffMap = scale < 1;
 
   return {
-    cx: center + dx * scale,
-    cy: center + dy * scale,
+    cx: centerX + dx * scale,
+    cy: centerY + dy * scale,
     isOffMap,
     // atan2(dx, -dy) measures clockwise from up, matching SVG's rotate().
     outwardAngleDegrees: normalizeDegrees((Math.atan2(dx, -dy) * 180) / Math.PI),

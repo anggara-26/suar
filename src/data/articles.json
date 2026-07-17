@@ -1,0 +1,34 @@
+[
+  {
+    "id": "jakarta-flood",
+    "territoryIds": ["dki-jakarta"],
+    "hazardType": "flood",
+    "title": "Before the flood season",
+    "excerpt": "Know your evacuation route and keep documents dry.",
+    "body": "Jakarta floods seasonally during heavy rain. Keep important documents in a sealed waterproof bag, know the nearest higher-ground evacuation point before water rises, and avoid walking or driving through moving flood water — it can be deeper and faster than it looks. Turn off electricity at the main switch if water enters your home."
+  },
+  {
+    "id": "java-earthquake",
+    "territoryIds": ["dki-jakarta", "jawa-barat", "jawa-tengah", "di-yogyakarta", "jawa-timur"],
+    "hazardType": "earthquake",
+    "title": "During an earthquake: Drop, Cover, Hold",
+    "excerpt": "Drop to the ground, cover your head, hold on until shaking stops.",
+    "body": "Java sits on active fault lines. When shaking starts: drop to your hands and knees, cover your head and neck (get under sturdy furniture if possible), and hold on until the shaking stops. Stay indoors if you're already inside — most injuries happen from falling objects near exits and windows, not from buildings collapsing outright. Once shaking stops, check for gas leaks before using any flame or switch."
+  },
+  {
+    "id": "merapi-volcano",
+    "territoryIds": ["di-yogyakarta", "jawa-tengah"],
+    "hazardType": "volcano",
+    "title": "Living near an active volcano",
+    "excerpt": "Know the exclusion radius and keep a mask for ashfall.",
+    "body": "Areas around Mount Merapi are subject to periodic activity and official exclusion-zone radius changes. Follow official evacuation radius announcements rather than personal judgment — they account for pyroclastic flow paths, not just distance. Keep a dust mask and eye protection on hand for ashfall, close windows and vents during ashfall, and avoid unnecessary travel until authorities confirm it's safe."
+  },
+  {
+    "id": "java-coastal-tsunami",
+    "territoryIds": ["jawa-barat", "jawa-tengah", "jawa-timur"],
+    "hazardType": "tsunami",
+    "title": "If you feel a strong quake near the coast",
+    "excerpt": "Don't wait for an official warning — move inland or uphill.",
+    "body": "A strong earthquake felt near the coast is itself the warning — a tsunami can arrive before any official alert reaches you. Move away from the coast to higher ground immediately after strong shaking stops. Do not return to check on belongings or wait to see the wave; if you can see it, it's already too close. Wait for an official all-clear before returning."
+  }
+]

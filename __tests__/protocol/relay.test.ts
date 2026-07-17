@@ -15,6 +15,7 @@ function makeObservation(overrides: Partial<Parameters<typeof buildRelayFrame>[0
     longitude: 106.8,
     timestamp: Date.now(),
     sequence: 1,
+    accuracyMeters: 12,
     ...overrides,
   };
 }
@@ -62,6 +63,17 @@ describe('buildRelayFrame', () => {
     expect(frame.hopsRemaining).toBe(1);
     expect(frame.deviceId).toBe(observation.deviceId);
     expect(frame.sequence).toBe(observation.sequence);
+  });
+
+  it("carries the origin's position and accuracy through untouched", () => {
+    // A relay that dropped the accuracy would make the origin's coarse fix look
+    // precise to everyone downstream — the exact lie the byte exists to prevent.
+    const observation = makeObservation({ accuracyMeters: 90 });
+    const frame = buildRelayFrame(observation);
+
+    expect(frame.accuracyMeters).toBe(90);
+    expect(frame.latitude).toBe(observation.latitude);
+    expect(frame.longitude).toBe(observation.longitude);
   });
 });
 

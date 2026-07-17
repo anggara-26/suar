@@ -1,0 +1,7 @@
+[
+  { "id": "dki-jakarta", "name": "DKI Jakarta", "centroid": { "lat": -6.2, "lon": 106.8 } },
+  { "id": "jawa-barat", "name": "Jawa Barat", "centroid": { "lat": -6.9, "lon": 107.6 } },
+  { "id": "jawa-tengah", "name": "Jawa Tengah", "centroid": { "lat": -7.15, "lon": 110.14 } },
+  { "id": "di-yogyakarta", "name": "DI Yogyakarta", "centroid": { "lat": -7.8, "lon": 110.36 } },
+  { "id": "jawa-timur", "name": "Jawa Timur", "centroid": { "lat": -7.5, "lon": 112.5 } }
+]

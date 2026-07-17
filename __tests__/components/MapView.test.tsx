@@ -2,6 +2,7 @@ import React from 'react';
 import ReactTestRenderer from 'react-test-renderer';
 import { G, Text as SvgText } from 'react-native-svg';
 import { MapView } from '@/src/components/map/MapView';
+import { MapDot } from '@/src/components/map/MapDot';
 import { useBeaconStore } from '@/src/state/beaconStore';
 import { useSettingsStore } from '@/src/state/settingsStore';
 import { BeaconType, type BeaconState } from '@/src/types/beacon';
@@ -21,12 +22,13 @@ function makeLocated(offset: { east: number; north: number }): LocatedBeacon {
     longitude: 106.8,
     timestamp: 0,
     sequence: 1,
+    accuracyMeters: 5,
     rawRssi: -60,
     smoothedRssi: -60,
     bucket: 'near',
     lastSeenAt: 0,
   };
-  return { beacon, offset, distanceLabel: '50 m' };
+  return { beacon, offset, distanceLabel: '50 m', isApproximate: false };
 }
 
 // Mounted trees stay subscribed to the stores, so a later test's setState would
@@ -37,7 +39,7 @@ function render(located: LocatedBeacon[] = []) {
   let tree!: ReactTestRenderer.ReactTestRenderer;
   ReactTestRenderer.act(() => {
     tree = ReactTestRenderer.create(
-      <MapView located={located} focusedBeaconId={null} size={SIZE} />,
+      <MapView located={located} focusedBeaconId={null} width={SIZE} height={SIZE} />,
     );
   });
   mounted.push(tree);
@@ -127,5 +129,24 @@ describe('MapView', () => {
 
     expect(label).toContain('1 beacon with a known direction');
     expect(label).toContain('rotating to face your direction');
+  });
+
+  it('passes isApproximate through to the dot and calls it out in the accessibility label', () => {
+    const approximate = { ...makeLocated({ east: 0, north: 5 }), isApproximate: true };
+    const tree = render([approximate]);
+
+    expect(tree.root.findByType(MapDot).props.isApproximate).toBe(true);
+
+    const label = tree.root.findAll((node) => typeof node.props.accessibilityLabel === 'string')[0]
+      .props.accessibilityLabel;
+    expect(label).toContain('1 beacon with a known direction (1 approximate)');
+  });
+
+  it('does not mention approximate beacons when there are none', () => {
+    const tree = render([makeLocated({ east: 0, north: 50 })]);
+    const label = tree.root.findAll((node) => typeof node.props.accessibilityLabel === 'string')[0]
+      .props.accessibilityLabel;
+
+    expect(label).not.toContain('approximate');
   });
 });

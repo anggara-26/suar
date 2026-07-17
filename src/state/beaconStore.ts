@@ -20,6 +20,7 @@ interface UpsertBeaconInput {
   longitude: number;
   timestamp: number;
   sequence: number;
+  accuracyMeters: number;
   rawRssi: number;
 }
 
@@ -104,6 +105,7 @@ export const useBeaconStore = create<BeaconStoreState>()((set, get) => ({
         longitude: input.longitude,
         timestamp: input.timestamp,
         sequence: input.sequence,
+        accuracyMeters: input.accuracyMeters,
         rawRssi: input.rawRssi,
         smoothedRssi,
         bucket: nextTransition.currentBucket,

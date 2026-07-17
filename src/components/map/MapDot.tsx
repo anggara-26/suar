@@ -10,6 +10,13 @@ interface MapDotProps {
   isFocused: boolean;
   /** True when the beacon is beyond the map's span and has been pulled to the edge. */
   isOffMap: boolean;
+  /**
+   * True when this position comes from two fixes too close together to trust
+   * the bearing between them — a real GPS delta, just a noisy one. Rendered
+   * dashed/translucent with a "~" on the label rather than hidden, so the
+   * beacon stays visible instead of vanishing whenever two devices are close.
+   */
+  isApproximate: boolean;
   /** Outward direction in screen degrees (0 = up), used to aim the off-map chevron. */
   outwardAngleDegrees: number;
   /** Undoes the world rotation so text stays upright. */
@@ -28,6 +35,7 @@ export function MapDot({
   distanceLabel,
   isFocused,
   isOffMap,
+  isApproximate,
   outwardAngleDegrees,
   counterRotationDegrees,
   radius = 10,
@@ -52,7 +60,17 @@ export function MapDot({
         </G>
       ) : null}
 
-      <Circle cx={cx} cy={cy} r={radius} fill={fillColor} />
+      {/* Dashed, semi-transparent fill flags a bearing too close to its own GPS noise to trust. */}
+      <Circle
+        cx={cx}
+        cy={cy}
+        r={radius}
+        fill={fillColor}
+        fillOpacity={isApproximate ? 0.35 : 1}
+        stroke={fillColor}
+        strokeWidth={isApproximate ? 2 : 0}
+        strokeDasharray={isApproximate ? '3,3' : undefined}
+      />
 
       {isAssembly ? (
         <G transform={`rotate(${counterRotationDegrees}, ${cx}, ${cy})`}>
@@ -70,7 +88,7 @@ export function MapDot({
           fontWeight="600"
           fill={theme.label}
           textAnchor="middle">
-          {distanceLabel}
+          {isApproximate ? `~${distanceLabel}` : distanceLabel}
         </SvgText>
       </G>
     </G>

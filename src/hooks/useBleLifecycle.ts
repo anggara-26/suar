@@ -16,6 +16,7 @@ import { playBucketPattern, stopHaptics } from '@/src/services/haptics/HapticSer
 import { useBeaconStore } from '@/src/state/beaconStore';
 import { useSettingsStore } from '@/src/state/settingsStore';
 import { BeaconType } from '@/src/types/beacon';
+import { ACCURACY_UNKNOWN_METERS } from '@/src/protocol/beaconCodec';
 import { selectNearestBeacon } from '@/src/utils/beaconSelection';
 import {
   BROADCAST_INTERVAL_MS,
@@ -65,6 +66,7 @@ export function useBleLifecycle() {
         longitude: observation.longitude,
         timestamp: observation.timestamp,
         sequence: observation.sequence,
+        accuracyMeters: observation.accuracyMeters,
         rawRssi: rssi,
       });
 
@@ -200,6 +202,10 @@ export function useBleLifecycle() {
         hopsRemaining: MAX_HOPS_MESH,
         latitude: location?.latitude ?? 0,
         longitude: location?.longitude ?? 0,
+        // Same placeholder logic as the coordinates above: with no fix there's
+        // no accuracy to report either, and "unknown" is the honest answer —
+        // claiming 0m would tell receivers this phantom position is perfect.
+        accuracyMeters: location?.accuracy ?? ACCURACY_UNKNOWN_METERS,
         timestamp: Date.now(),
         sequence,
       });

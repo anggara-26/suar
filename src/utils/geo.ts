@@ -45,6 +45,17 @@ export function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
+/**
+ * True for a real GPS fix — finite coordinates that aren't the `(0, 0)`
+ * "no fix yet" placeholder broadcast before a device's first GPS lock (see
+ * beaconCodec's wire format). Shared by anything that has to tell a real
+ * position apart from that placeholder, e.g. map placement and
+ * territory matching.
+ */
+export function isValidFix(lat: number, lon: number): boolean {
+  return Number.isFinite(lat) && Number.isFinite(lon) && !(lat === 0 && lon === 0);
+}
+
 export interface LocalOffsetMeters {
   /** Metres east of the origin; negative is west. */
   east: number;

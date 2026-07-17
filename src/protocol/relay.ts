@@ -36,5 +36,8 @@ export function buildRelayFrame(observation: BeaconObservation): EncodeBeaconInp
     longitude: observation.longitude,
     timestamp: observation.timestamp,
     sequence: observation.sequence,
+    // The origin's accuracy travels with its position — a relay that dropped it
+    // would make a coarse fix look precise by the time it reached anyone else.
+    accuracyMeters: observation.accuracyMeters,
   };
 }

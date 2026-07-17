@@ -11,7 +11,8 @@ export const SUAR_SERVICE_UUID = '0000fff0-0000-1000-8000-00805f9b34fb';
 /** SIG-reserved "testing only" company ID — not a real assigned vendor ID. */
 export const SUAR_COMPANY_ID = 0xffff;
 
-export const PROTOCOL_VERSION = 0;
+/** Bumped to 1 when the accuracy byte joined the payload (see beaconCodec's wire format). */
+export const PROTOCOL_VERSION = 1;
 
 /** Rebuild + rebroadcast the payload on this interval, decoupled from GPS sample rate. */
 export const BROADCAST_INTERVAL_MS = 4000;

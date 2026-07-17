@@ -15,6 +15,8 @@ export interface BeaconObservation {
   longitude: number;
   timestamp: number;
   sequence: number;
+  /** The sender's own GPS accuracy in metres, as reported by them (255 = unknown). */
+  accuracyMeters: number;
 }
 
 export interface BeaconState extends BeaconObservation {
