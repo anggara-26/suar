@@ -242,13 +242,13 @@ export function RadarScreen() {
       <AssemblyToggleSheet visible={isSheetOpen} onClose={() => setSheetOpen(false)} />
 
       <DemoCountdownOverlay phase={demoScenario.phase} countdownValue={demoScenario.countdownValue} />
-      {__DEV__ ? (
-        <HiddenDemoTrigger
-          phase={demoScenario.phase}
-          start={demoScenario.start}
-          cancel={demoScenario.cancel}
-        />
-      ) : null}
+      {/* {__DEV__ ? ( */}
+      <HiddenDemoTrigger
+        phase={demoScenario.phase}
+        start={demoScenario.start}
+        cancel={demoScenario.cancel}
+      />
+      {/* ) : null} */}
     </View>
   );
 }
