@@ -12,6 +12,9 @@ import { AssemblyToggleSheet } from '@/src/components/AssemblyToggleSheet';
 import { AccessibleAnnouncer } from '@/src/components/accessibility/AccessibleAnnouncer';
 import { VisualEmphasis } from '@/src/components/accessibility/VisualEmphasis';
 import { useVoiceGuidance } from '@/src/hooks/useVoiceGuidance';
+import { useDemoScenario } from '@/src/hooks/useDemoScenario';
+import { DemoCountdownOverlay } from '@/src/components/demo/DemoCountdownOverlay';
+import { HiddenDemoTrigger } from '@/src/components/demo/HiddenDemoTrigger';
 
 const BUCKET_LABEL: Record<RssiBucket, string> = {
   'very-near': 'Very near',
@@ -85,6 +88,10 @@ export function RadarScreen() {
   const cycleMapSpan = useSettingsStore((state) => state.cycleMapSpan);
   const setRotationMode = useSettingsStore((state) => state.setRotationMode);
   useVoiceGuidance();
+  const demoScenario = useDemoScenario({
+    openSettings: () => setSheetOpen(true),
+    closeSettings: () => setSheetOpen(false),
+  });
 
   const beaconList = useMemo(
     () => Object.values(beacons).sort((a, b) => b.smoothedRssi - a.smoothedRssi),
@@ -233,6 +240,15 @@ export function RadarScreen() {
       </View>
 
       <AssemblyToggleSheet visible={isSheetOpen} onClose={() => setSheetOpen(false)} />
+
+      <DemoCountdownOverlay phase={demoScenario.phase} countdownValue={demoScenario.countdownValue} />
+      {__DEV__ ? (
+        <HiddenDemoTrigger
+          phase={demoScenario.phase}
+          start={demoScenario.start}
+          cancel={demoScenario.cancel}
+        />
+      ) : null}
     </View>
   );
 }

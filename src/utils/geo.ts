@@ -83,3 +83,21 @@ export function toLocalEastNorthMeters(
     north: toRadians(lat - originLat) * EARTH_RADIUS_METERS,
   };
 }
+
+/**
+ * The inverse of `toLocalEastNorthMeters`: given an origin and an east/north
+ * offset in metres, returns the resulting lat/lon. Solves the same
+ * equirectangular approximation the other way — good for placing a synthetic
+ * point "N metres from here" (e.g. the demo scenario's simulated beacons)
+ * rather than measuring a real one.
+ */
+export function fromLocalEastNorthMeters(
+  originLat: number,
+  originLon: number,
+  offset: LocalOffsetMeters,
+): { latitude: number; longitude: number } {
+  return {
+    latitude: originLat + toDegrees(offset.north / EARTH_RADIUS_METERS),
+    longitude: originLon + toDegrees(offset.east / (EARTH_RADIUS_METERS * Math.cos(toRadians(originLat)))),
+  };
+}
